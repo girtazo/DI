@@ -6,7 +6,8 @@ import sqlite3
 from pprint import pprint
 
 
-baseDatos = 'tEjercicio'
+baseDatos = 'BaseDatos'
+campos = ("id","usuario","password","nombre","apellidos","email","direccion")
 
 
 class Tabla :
@@ -25,10 +26,13 @@ class Tabla :
 		self.cursor.execute("SELECT * FROM "+self.nombre)
 		tuplas=self.cursor.fetchall()
 		return tuplas
+	def borrar(self,campo,valor):
+		self.cursor.execute("DELETE FROM "+self.nombre+" WHERE "+campo+"="+valor)
+		self.conexion.commit()
 	def cerrar(self):
 		self.conexion.close()
 
-class interfaz :
+class Interfaz :
 
 	def __init__(self,archivo):
 		self.xml = Gtk.Builder()
@@ -43,7 +47,7 @@ class interfaz :
 		return self.xml.get_object(id)
 
 
-def recogidaDatos(formulario):
+def recogidaDatos( formulario ):
 	campos = {}
 	campos['usuario'] = formulario.recoger("usuario").get_text()
 	campos['password'] = formulario.recoger("password").get_text()
@@ -53,59 +57,86 @@ def recogidaDatos(formulario):
 	campos['direccion'] = formulario.recoger("direccion").get_text()
 	return campos
 
-def insertar(widget):
-	xml = interfaz("interfaz")
-	campos = recogidaDatos(xml)
-	tEjercicio = Tabla("tEjercicio","tusuario")
-	tEjercicio.insertar(campos)
-	tEjercicio.cerrar()
+def insertar( interfaz ):
+	usuario = recogidaDatos(interfaz)
+	tblUsuarios = Tabla(baseDatos,"usuarios")
+	tblUsuarios.insertar(usuario)
+	tblUsuarios.cerrar()
 
-def listar(widget):
-	xml = interfaz("interfaz")
-	tEjercicio = Tabla("tEjercicio","tusuario")
-	datos = tEjercicio.obtenertuplas()
-	tEjercicio.cerrar()
-	xml = interfaz("listado")
-	windowListado = xml.recoger("listado")
-	TreeView = xml.recoger("tabla")
-	listore = Gtk.ListStore(str,str,str,str,str,str)
+def crearlistado( self ):
+	interfaz = None
+	interfaz = Interfaz("interfaz")
 
-	for tupla in datos:
-		listore.append(tupla)
+	tblUsuarios = Tabla(baseDatos,"usuarios")
+	usuarios = tblUsuarios.obtenertuplas()
+	tblUsuarios.cerrar()
+	window = interfaz.recoger("listado")
+	TreeView = interfaz.recoger("tabla")
 
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Usuario", renderer, text=0)
-	TreeView.append_column(column)
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Contraseña", renderer, text=1)
-	TreeView.append_column(column)
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Nombre", renderer, text=2)
-	TreeView.append_column(column)
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Apellidos", renderer, text=3)
-	TreeView.append_column(column)
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Email", renderer, text=4)
-	TreeView.append_column(column)
-	renderer = Gtk.CellRendererText()
-	column = Gtk.TreeViewColumn("Direccion", renderer, text=5)
-	TreeView.append_column(column)
+	listore = Gtk.ListStore(str,str,str,str,str,str,str)
+
+	for usuario in usuarios:
+		usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
+		listore.append(usuario)
+
+	for campo in range(7):
+		renderer = Gtk.CellRendererText()
+		column = Gtk.TreeViewColumn(campos[campo], renderer, text=campo)
+		TreeView.append_column(column)
+
 	TreeView.set_model(listore)
-	windowListado.show()
+	window.show_all()
+
+	interfaz.recoger("actualizar").connect("clicked",lambda actualizar : actualiza(interfaz))
+	interfaz.recoger("eliminar").connect("clicked",lambda eliminar : elimina(interfaz))
+	TreeView.connect("row-activated",lambda sensitive : eliminacion(interfaz))
+	
+def actualiza( interfaz ):
+	tabla = interfaz.recoger("tabla")
+	tblUsuarios = Tabla(baseDatos,"usuarios")
+	usuarios = tblUsuarios.obtenertuplas()
+	tblUsuarios.cerrar()
+	window = interfaz.recoger("listado")
+
+	listore = Gtk.ListStore(str,str,str,str,str,str,str)
+
+	for usuario in usuarios:
+		usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
+		listore.append(usuario)
+
+	tabla.set_model(listore)
+	window.show_all()
+
+def elimina( interfaz ):
+	tabla = interfaz.recoger("tabla")
+	select = tabla.get_selection()
+	usuario, campo= select.get_selected()
+	tblUsuarios = Tabla(baseDatos,"usuarios")
+	id = usuario[campo][0]
+	tblUsuarios.borrar("id",id)
+	actualiza(interfaz)
+
+def eliminacion(interfaz):
+	print "entra"
+	eliminar = interfaz.recoger("eliminar")
+	if eliminar.sensitive :
+		eliminar = False
+	else:
+		eliminar = True
 
 #obtener interfaz
-xml = interfaz("interfaz")
+interfaz = Interfaz("interfaz")
 
-window = xml.recoger("applicationwindow1")
+#obtener ventana principal
+windowInsercion = interfaz.recoger("insercion")
 
 #asignar eventos
-xml.recoger("insertar").connect("clicked",insertar)
-xml.recoger("listar").connect("clicked",listar)
-window.connect("destroy",Gtk.main_quit)
+interfaz.recoger("insertar").connect("clicked",lambda grabar : insertar(interfaz))
+interfaz.recoger("listar").connect("clicked",crearlistado)
+windowInsercion.connect("destroy",Gtk.main_quit)
 
 #Mostrar ventana principal
-window.show_all()
+windowInsercion.show_all()
 
 # Lanzar GTK
 Gtk.main()
