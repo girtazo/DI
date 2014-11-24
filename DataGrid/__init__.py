@@ -46,126 +46,155 @@ class Interfaz :
 	def recoger(self,id):
 		return self.xml.get_object(id)
 
+class Window :
+	def __init__( self, nombre, nombreInterfaz, principal = True ):
+		self.Principal = principal
+		self.Nombre = nombre
 
-def recogidaDatos( formulario ):
-	campos = {}
-	campos['usuario'] = formulario.recoger("usuario").get_text()
-	campos['password'] = formulario.recoger("password").get_text()
-	campos['nombre'] = formulario.recoger("nombre").get_text()
-	campos['apellidos'] = formulario.recoger("apellidos").get_text()
-	campos['email'] = formulario.recoger("email").get_text()
-	campos['direccion'] = formulario.recoger("direccion").get_text()
-	return campos
+		self.Interfaz = Interfaz(nombreInterfaz)
+		
+		self.Window = self.Interfaz.recoger(nombre)
 
-def windowInsercion( self ):
+		if self.Principal:
+			self.Window.connect("destroy",Gtk.main_quit)
 
-	interfaz = None
-	interfaz = Interfaz("interfaz")
+class windowListado(Window) :
 
-	#Botones
-	interfaz.recoger("insertar").connect("clicked",lambda guardar : insertar(interfaz))
+	def __init__( self, nombre, nombreInterfaz, principal = True ):
+		
+		Window.__init__( self, nombre, nombreInterfaz, principal )
 
-def insertar(interfaz):
-	usuario = recogidaDatos(interfaz)
-	tblUsuarios = Tabla(baseDatos,"usuarios")
-	tblUsuarios.insertar(usuario)
-	tblUsuarios.cerrar()
+		self.btnEliminar = self.Interfaz.recoger("eliminar")
+		self.btnEliminar.set_sensitive(False)
 
-def listar( self ):
+		self.crearListado()
 
-	tblUsuarios = Tabla(baseDatos,"usuarios")
-	usuarios = tblUsuarios.obtenertuplas()
-	tblUsuarios.cerrar()
+		self.Window.show_all()
 
-	TreeView = interfaz.recoger("tabla")
-	eliminar = interfaz.recoger("eliminar")
-	eliminar.set_sensitive(False)
+		# Menu
+		self.Interfaz.recoger("Nuevo").connect("activate",lambda Nuevo : windowInsercion("Insertar","interfaz"))
+		self.Interfaz.recoger("Salir").connect("activate",lambda cerrarTabla : self.cerrar())
+		self.Interfaz.recoger("acercaDe").connect("activate",lambda abrirAcercaDe : windowAcercaDe("aboutdialog1","interfaz"))
+
+		# Barra de Herramientas
+		self.Interfaz.recoger("actualizar").connect("clicked",lambda Actualizar : self.actualizar())
+		self.btnEliminar.connect("clicked",lambda Eliminar : self.elimina())
+
+		# Seleccion TreeView
+		self.TreeView.connect("cursor-changed",lambda activaEliminacion : self.eliminacion())
 
 
-	listore = Gtk.ListStore(str,str,str,str,str,str,str)
+	def crearListado(self):
 
-	for usuario in usuarios:
-		usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
-		listore.append(usuario)
+		self.TreeView = self.Interfaz.recoger("tabla")
 
-	for campo in range(7):
-		renderer = Gtk.CellRendererText()
-		column = Gtk.TreeViewColumn(campos[campo], renderer, text=campo)
-		TreeView.append_column(column)
+		self.Tabla = Tabla(baseDatos,"usuarios")
+		usuarios = self.Tabla.obtenertuplas()
 
-	TreeView.set_model(listore)
-	
-	# Menu
-	interfaz.recoger("Nuevo").connect("activated",windowInsercion)
-	interfaz.recoger("Cerrar").connect("activated",lambda cerrarTabla : cerrar(windowTabla))
+		listore = Gtk.ListStore(str,str,str,str,str,str,str)
 
-	# Barra de Herramientas
-	interfaz.recoger("actualizar").connect("clicked",lambda actualizar : actualiza(interfaz))
-	eliminar.connect("clicked",lambda eliminar : elimina(interfaz))
+		for usuario in usuarios:
+			usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
+			listore.append(usuario)
 
-	# Seleccion TreeView
-	TreeView.connect("cursor-changed",lambda sensitive : eliminacion(interfaz))
-	
-def actualiza( interfaz ):
-	
-	window = interfaz.recoger("Tabla")
-	tabla = interfaz.recoger("tabla")
+		for campo in range(7):
+			renderer = Gtk.CellRendererText()
+			column = Gtk.TreeViewColumn(campos[campo], renderer, text=campo)
+			self.TreeView.append_column(column)
 
-	tblUsuarios = Tabla(baseDatos,"usuarios")
-	usuarios = tblUsuarios.obtenertuplas()
-	tblUsuarios.cerrar()
+		self.TreeView.set_model(listore)
 
-	
+	def actualizar(self):
 
-	listore = Gtk.ListStore(str,str,str,str,str,str,str)
+		usuarios = self.Tabla.obtenertuplas()
 
-	for usuario in usuarios:
-		usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
-		listore.append(usuario)
+		listore = Gtk.ListStore(str,str,str,str,str,str,str)
 
-	tabla.set_model(listore)
-	window.show_all()
+		for usuario in usuarios:
+			usuario = (str(usuario[0]),usuario[1],usuario[2],usuario[3],usuario[4],usuario[5],usuario[6])
+			listore.append(usuario)
 
-def elimina( interfaz ):
-	tabla = interfaz.recoger("tabla")
-	select = tabla.get_selection()
-	usuario, campo= select.get_selected()
-	tblUsuarios = Tabla(baseDatos,"usuarios")
-	id = usuario[campo][0]
-	tblUsuarios.borrar("id",id)
-	actualiza(interfaz)
+		self.TreeView.set_model(listore)
+		self.Window.show_all()
 
-def eliminacion( interfaz ):
-	btnEliminar = interfaz.recoger("eliminar")
-	if btnEliminar.get_sensitive() == True :
-		if interfaz.recoger("tabla").get_selection().count_selected_rows() == 0 :
-			btnEliminar.set_sensitive(False)
-	else :
-		btnEliminar.set_sensitive(True)
+	def elimina(self):
 
-def crearAcercaDe(self):
-	print "entra"
-	interfaz = None
-	interfaz = interfaz("interfaz")
-	ventanaAcercaDe = interfaz.recoger("aboutdialog1")
-	ventanaAcercaDe.show_all()
-	interfaz.recoger("aboutdialog-action_area1").get_children()[0].connect("clicked",lambda cerrarAcercaDe : quitarAcercaDe(ventanaAcercaDe))
+		select = self.TreeView.get_selection()
+		usuario, campo = select.get_selected()
+		id = usuario[campo][0]
+		self.Tabla.borrar("id",id)
+		self.actualizar()
 
-def cerrar(window):
-	window.destroy()
+	def eliminacion(self):
 
-#obtener interfaz
-interfaz = Interfaz("interfaz")
+		if self.TreeView.get_selection().count_selected_rows() == 0 :
+			self.btnEliminar.set_sensitive(False)
+		else :
+			self.btnEliminar.set_sensitive(True)
 
-#obtener ventana principal
-windowTabla = interfaz.recoger("Tabla")
+	def cerrar(self):
 
-#asignar eventos
-interfaz.recoger("imagemenuitem10").connect("activate",lambda acercaDe : crearAcercaDe)
-windowTabla.connect("destroy",Gtk.main_quit)
+		self.Tabla.cerrar()
+		self.Window.destroy()
 
-#Mostrar ventana principal
-windowTabla.show_all()
+class windowInsercion(Window) :
+
+	def __init__( self, nombre, nombreInterfaz ):
+
+		Window.__init__( self, nombre, nombreInterfaz, False )
+
+		self.Tabla = Tabla(baseDatos, "usuarios") 
+
+		self.Window.show_all()
+
+		#Botones
+		self.Interfaz.recoger("btnInsertar").connect("clicked",lambda guardar : self.insertar())
+
+		self.Window.connect("destroy",lambda cerrarFormulario : self.cerrar())
+
+	def getUsuario(self):
+
+		usuario = {}
+		usuario['usuario'] = self.Interfaz.recoger("usuario").get_text()
+		usuario['password'] = self.Interfaz.recoger("password").get_text()
+		usuario['nombre'] = self.Interfaz.recoger("nombre").get_text()
+		usuario['apellidos'] = self.Interfaz.recoger("apellidos").get_text()
+		usuario['email'] = self.Interfaz.recoger("email").get_text()
+		usuario['direccion'] = self.Interfaz.recoger("direccion").get_text()
+		return usuario
+
+	def cleanForm(self):
+
+		self.Interfaz.recoger("usuario").set_text("")
+		self.Interfaz.recoger("password").set_text("")
+		self.Interfaz.recoger("nombre").set_text("")
+		self.Interfaz.recoger("apellidos").set_text("")
+		self.Interfaz.recoger("email").set_text("")
+		self.Interfaz.recoger("direccion").set_text("")
+
+	def insertar(self):
+
+		usuario = self.getUsuario()
+		self.Tabla.insertar(usuario)
+		self.cleanForm()
+
+	def cerrar(self):
+
+		self.Tabla.cerrar()
+
+class windowAcercaDe(Window) :
+
+	def __init__( self, nombre, nombreInterfaz ):
+
+		Window.__init__( self, nombre, nombreInterfaz, False )
+
+		self.Window.show_all()
+
+		# Botones
+		self.Interfaz.recoger("aboutdialog-action_area1").get_children()[0].connect("clicked",lambda cerrarAcercaDe : self.Window.destroy())
+
+# Lanzar Aplicacion Tabla
+listado = windowListado("Tabla","interfaz")
 
 # Lanzar GTK
 Gtk.main()
