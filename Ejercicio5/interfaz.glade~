@@ -106,6 +106,7 @@
               <object class="GtkToolButton" id="actualizar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Actualizar</property>
                 <property name="label" translatable="yes">actualizar</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-refresh</property>

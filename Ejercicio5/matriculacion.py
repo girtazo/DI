@@ -39,11 +39,20 @@ class Tabla :
 		tuplas=self.cursor.fetchall()
 		return tuplas
 
-	def modificar(self,campo,valor):
+	def modificar(self,valores,Bcampo,Bvalor):
 
+		valores = valores.items()
 		update = "UPDATE "+self.nombre+" SET "
-		for c in range(0,campos)
-		self.cursor.execute("UPDATE "+self.nombre+" SET usuario="WHERE "+campo+"="+valor)
+		for c in range(0,len(valores)):
+			valor =  valores[c]
+			if c+1 != len(valores):
+				update = update + valor[0]+"='"+str(valor[1])+"', "
+			else :
+				update = update + valor[0]+"='"+str(valor[1])+"'"
+
+		update = update + "WHERE "+Bcampo+"="+str(Bvalor)
+		self.cursor.execute(update)
+		self.conexion.commit()
 
 	def borrar(self,campo,valor):
 
@@ -57,6 +66,7 @@ class Tabla :
 class Interfaz :
 
 	def __init__(self,archivo):
+
 		self.xml = Gtk.Builder()
 		self.xml.add_from_file(archivo+".glade")
 
@@ -66,6 +76,7 @@ class Interfaz :
 		self.xml.connect_signals(handler)
 
 	def recoger(self,id):
+
 		return self.xml.get_object(id)
 
 class Window :
@@ -87,7 +98,7 @@ class windowListado(Window) :
 		Window.__init__( self, nombre, nombreInterfaz, principal )
 
 		self.btnEliminar = self.Interfaz.recoger("eliminar")
-		self.btnEliminar = self.Interfaz.recoger("editar")
+		self.btnEditar = self.Interfaz.recoger("editar")
 		self.btnEditar.set_sensitive(False)
 		self.btnEliminar.set_sensitive(False)
 
@@ -96,25 +107,24 @@ class windowListado(Window) :
 		self.Window.show_all()
 
 		# Menu
-		self.Interfaz.recoger("Nuevo").connect("activate",lambda Nuevo : windowInsercion("Insertar","interfaz"))
+		self.Interfaz.recoger("Nuevo").connect("activate",lambda Nuevo : windowInsercion("Insertar","interfaz",self))
 		self.Interfaz.recoger("Salir").connect("activate",lambda cerrarTabla : self.cerrar())
 		self.Interfaz.recoger("acercaDe").connect("activate",lambda abrirAcercaDe : windowAcercaDe("aboutdialog1","interfaz"))
 
 		# Barra de Herramientas
 		self.Interfaz.recoger("actualizar").connect("clicked",lambda Actualizar : self.actualizar())
 		self.btnEliminar.connect("clicked",lambda Eliminar : self.elimina())
-		self.btnEditar.connect("clicked",lambda Editar : windowModificacion())
+		self.btnEditar.connect("clicked",lambda Editar : self.modificar())
 
 		# Seleccion TreeView
-		self.TreeView.connect("cursor-changed",lambda activaEliminacion : self.eliminacion())
-
+		self.TreeView.connect("cursor-changed",lambda activaEliminacion : self.seleccion())
 
 	def crearListado(self):
 
 		self.TreeView = self.Interfaz.recoger("tabla")
 
 		self.Tabla = Tabla(baseDatos,"usuarios")
-		usuarios = self.Tabla.obtenertuplas()
+		usuarios = self.Tabla.obtenerTuplas()
 
 		listore = Gtk.ListStore(str,str,str,str,str,str,str)
 
@@ -131,7 +141,7 @@ class windowListado(Window) :
 
 	def actualizar(self):
 
-		usuarios = self.Tabla.obtenertuplas()
+		usuarios = self.Tabla.obtenerTuplas()
 
 		listore = Gtk.ListStore(str,str,str,str,str,str,str)
 
@@ -142,6 +152,21 @@ class windowListado(Window) :
 		self.TreeView.set_model(listore)
 		self.Window.show_all()
 
+	def modificar(self):
+
+		select = self.TreeView.get_selection()
+		usuario, campo = select.get_selected()
+		id = usuario[campo][0]
+		busqueda = { "id" : id }
+
+		modificacion = windowModificacion("modificar", "interfaz", self)
+
+		busqueda = busqueda.items()[0]
+
+		tuplas = modificacion.Tabla.buquedaTuplas(busqueda[0], busqueda[1])
+
+		modificacion.setUsuario(tuplas[0])
+
 	def elimina(self):
 
 		select = self.TreeView.get_selection()
@@ -150,12 +175,14 @@ class windowListado(Window) :
 		self.Tabla.borrar("id",id)
 		self.actualizar()
 
-	def eliminacion(self):
+	def seleccion(self):
 
 		if self.TreeView.get_selection().count_selected_rows() == 0 :
 			self.btnEliminar.set_sensitive(False)
+			self.btnEditar.set_sensitive(False)
 		else :
 			self.btnEliminar.set_sensitive(True)
+			self.btnEditar.set_sensitive(True)
 
 	def cerrar(self):
 
@@ -164,9 +191,11 @@ class windowListado(Window) :
 
 class windowInsercion(Window) :
 
-	def __init__( self, nombre, nombreInterfaz ):
+	def __init__( self, nombre, nombreInterfaz, parent ):
 
 		Window.__init__( self, nombre, nombreInterfaz, False )
+
+		self.Parent = parent
 
 		self.Tabla = Tabla(baseDatos, "usuarios") 
 
@@ -201,7 +230,10 @@ class windowInsercion(Window) :
 
 		usuario = self.getUsuario()
 		self.Tabla.insertar(usuario)
+
 		self.cleanForm()
+
+		self.Parent.actualizar()
 
 	def cerrar(self):
 
@@ -209,9 +241,11 @@ class windowInsercion(Window) :
 
 class windowModificacion(Window) :
 
-	def __init__( self, nombre, nombreInterfaz ):
+	def __init__( self, nombre, nombreInterfaz, parent ):
 
 		Window.__init__( self, nombre, nombreInterfaz, False )
+
+		self.Parent = parent
 
 		self.Tabla = Tabla(baseDatos, "usuarios") 
 
@@ -225,28 +259,28 @@ class windowModificacion(Window) :
 	def getUsuario(self):
 
 		usuario = {}
-		usuario['usuario'] = self.Interfaz.recoger("usuario").get_text()
-		usuario['password'] = self.Interfaz.recoger("password").get_text()
-		usuario['nombre'] = self.Interfaz.recoger("nombre").get_text()
-		usuario['apellidos'] = self.Interfaz.recoger("apellidos").get_text()
-		usuario['email'] = self.Interfaz.recoger("email").get_text()
-		usuario['direccion'] = self.Interfaz.recoger("direccion").get_text()
+		usuario['usuario'] = self.Interfaz.recoger("musuario").get_text()
+		usuario['password'] = self.Interfaz.recoger("mpassword").get_text()
+		usuario['nombre'] = self.Interfaz.recoger("mnombre").get_text()
+		usuario['apellidos'] = self.Interfaz.recoger("mapellidos").get_text()
+		usuario['email'] = self.Interfaz.recoger("memail").get_text()
+		usuario['direccion'] = self.Interfaz.recoger("mdireccion").get_text()
 		return usuario
 
-	def cleanForm(self):
-
-		self.Interfaz.recoger("usuario").set_text("")
-		self.Interfaz.recoger("password").set_text("")
-		self.Interfaz.recoger("nombre").set_text("")
-		self.Interfaz.recoger("apellidos").set_text("")
-		self.Interfaz.recoger("email").set_text("")
-		self.Interfaz.recoger("direccion").set_text("")
+	def setUsuario(self,tupla):
+		self.id = tupla[0] 
+		self.Interfaz.recoger("musuario").set_text(tupla[1])
+		self.Interfaz.recoger("mpassword").set_text(tupla[2])
+		self.Interfaz.recoger("mnombre").set_text(tupla[3])
+		self.Interfaz.recoger("mapellidos").set_text(tupla[4])
+		self.Interfaz.recoger("memail").set_text(tupla[5])
+		self.Interfaz.recoger("mdireccion").set_text(tupla[6])
 
 	def modificar(self):
 
 		usuario = self.getUsuario()
-		self.Tabla.insertar(usuario)
-		self.cleanForm()
+		self.Tabla.modificar( usuario, "id", self.id )
+		self.Parent.actualizar()
 
 	def cerrar(self):
 
